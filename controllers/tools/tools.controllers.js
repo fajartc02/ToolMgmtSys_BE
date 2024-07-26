@@ -44,6 +44,7 @@ module.exports = {
                 tb_r_tools,
                 " ORDER BY tool_id DESC LIMIT 1", ["tool_qr"]
             );
+            console.log(result);
             let QRCodeTool = GENERATE_TOOL_QR(result[0].tool_qr);
 
             success(res, "Success", [{
