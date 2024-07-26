@@ -7,5 +7,6 @@ router.use("/distributions", require("./distributions"));
 router.use("/machines", require("./machines"));
 router.use("/systems", require("./systems"));
 router.use("/graph", require("./graph"));
+router.use("/lines", require("./lines"));
 
 module.exports = router;
