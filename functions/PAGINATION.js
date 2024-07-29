@@ -1,4 +1,5 @@
 const { queryCustom } = require("../helpers/query");
+const moment = require("moment");
 
 async function getPaginatedData(
   tableName,
@@ -33,6 +34,12 @@ async function getPaginatedData(
             ${columnOrderDesc ? `ORDER BY ${columnOrderDesc} DESC` : ""}
             ${itemsPerPage ? `LIMIT ${itemsPerPage} OFFSET ${offset}` : ""}`
     );
+    // Format created_dt to dd-mm-yyyy
+    dataResult.rows.forEach((row) => {
+      if (row.created_dt) {
+        row.created_dt = moment(row.created_dt).format("DD-MM-YYYY");
+      }
+    });
 
     return {
       data: dataResult.rows,
