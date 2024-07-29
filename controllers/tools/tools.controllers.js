@@ -80,10 +80,9 @@ module.exports = {
                 let obj = {
                     tool_position_id,
                     tool_id,
-                    act_counter: 0,
-                    is_scrab: false,
-                    regrinding_count: 0,
-                    distribution_id: 1,
+                    act_counter: "0",
+                    regrinding_count: "0",
+                    distribution_id: "1",
                 };
                 await queryPostTransaction(db, tb_t_tools_positions, obj);
                 let responseInserted = await queryPOST(tb_r_tools, req.body);
