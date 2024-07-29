@@ -7,6 +7,7 @@ const {
   queryTransaction,
   queryDELETE,
   querySoftDELETE,
+  queryPUT,
 } = require("../../helpers/query");
 const queryCondExacOpAnd = require("../../helpers/queryCondExacOpAnd");
 const condDataNotDeleted = `WHERE deleted_dt IS NULL`;
@@ -74,11 +75,34 @@ module.exports = {
       const whereCond = `line_id = ${line_id}`;
 
       // Panggil querySoftDELETE dengan parameter yang sesuai
-      await querySoftDELETE("tb_m_lines", data, whereCond);
+      await querySoftDELETE(tb_m_lines, data, whereCond);
 
       res.status(201).json({
         message: "Success",
         data: { code: 1, message: "DELETED" },
+      });
+    } catch (error) {
+      console.log(error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+  editLine: async (req, res) => {
+    try {
+      const line_id = req.params.id;
+      console.log(line_id);
+
+      // Data yang akan diupdate
+      const data = req.body;
+
+      // Kondisi where
+      const whereCond = `line_id = ${line_id}`;
+
+      // Panggil queryPut dengan parameter yang sesuai
+      await queryPUT(tb_m_lines, data, whereCond);
+
+      res.status(201).json({
+        message: "Success",
+        data: { code: 1, message: "UPDATED" },
       });
     } catch (error) {
       console.log(error);
