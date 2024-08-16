@@ -7,34 +7,49 @@ async function getPaginatedData(
   itemsPerPage = 1000,
   whereCond = null,
   columnOrderDesc = null,
-  joinTable = null
+  joinCondition = null,
+  joinColumns = null, // Tambahkan parameter untuk kolom yang di-join
+  hasDeletedDt = false // Default ke false jika tabel tidak memiliki deleted_dt
 ) {
   try {
     const offset = (currentPage - 1) * itemsPerPage;
 
-    // Fetch total count
-    const totalCountResult = await queryCustom(
-      `SELECT COUNT(*) FROM ${tableName}`
-    );
-    const totalCount = parseInt(totalCountResult.rows[0].count, itemsPerPage);
+    // Tentukan kondisi deleted_dt jika tabel memiliki kolom ini
+    const deletedDtCondition = hasDeletedDt
+      ? `${tableName}.deleted_dt IS NULL`
+      : "1=1";
 
-    // Fetch paginated data
+    // Query untuk menghitung total data
+    const totalCountResult = await queryCustom(
+      `SELECT COUNT(*) FROM ${tableName}
+       ${joinCondition ? joinCondition : ""}
+       WHERE ${deletedDtCondition} ${whereCond ? `AND ${whereCond}` : ""}`
+    );
+    const totalCount = parseInt(totalCountResult.rows[0].count, 10);
+
+    // Sesuaikan offset jika totalCount lebih kecil dari offset
+    const adjustedOffset = totalCount < offset ? 0 : offset;
+
+    // Tentukan kolom yang akan di-join jika ada
+    const columns = joinColumns
+      ? `${tableName}.*, ${joinColumns}`
+      : `${tableName}.*`;
+
+    // Query untuk mengambil data yang dipaginasi
     const dataResult = await queryCustom(
       `
-            SELECT ROW_NUMBER() OVER (
-                ${columnOrderDesc ? `ORDER BY ${columnOrderDesc} DESC` : ""}
-            ) as no, 
-            * FROM ${tableName}
-            ${
-              joinTable
-                ? `LEFT JOIN ${joinTable} ON ${tableName}.${joinTable}_id = ${joinTable}.${joinTable}_id`
-                : ""
-            }
-            where deleted_dt is null ${whereCond ? `and ${whereCond}` : ""}
-            ${columnOrderDesc ? `ORDER BY ${columnOrderDesc} DESC` : ""}
-            ${itemsPerPage ? `LIMIT ${itemsPerPage} OFFSET ${offset}` : ""}`
+        SELECT ROW_NUMBER() OVER (
+          ${columnOrderDesc ? `ORDER BY ${columnOrderDesc} DESC` : ""}
+        ) as no, 
+        ${columns}
+        FROM ${tableName}
+        ${joinCondition ? joinCondition : ""}
+        WHERE ${deletedDtCondition} ${whereCond ? `AND ${whereCond}` : ""}
+        ${columnOrderDesc ? `ORDER BY ${columnOrderDesc} DESC` : ""}
+        ${itemsPerPage ? `LIMIT ${itemsPerPage} OFFSET ${adjustedOffset}` : ""}`
     );
-    // Format created_dt to dd-mm-yyyy
+
+    // Format tanggal jika kolom created_dt ada
     dataResult.rows.forEach((row) => {
       if (row.created_dt) {
         row.created_dt = moment(row.created_dt).format("DD-MM-YYYY");
