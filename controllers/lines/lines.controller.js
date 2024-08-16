@@ -19,14 +19,24 @@ module.exports = {
   getLines: async (req, res) => {
     try {
       let meta = req.query.meta;
-      let conditions = queryCondExacOpAnd(req.query);
-      let whereCond = `${condDataNotDeleted} AND deleted_dt IS NULL${conditions}`;
-
       if (meta) {
-        const result = await getPaginatedData(tb_m_lines, meta.currentPage);
+        const result = await getPaginatedData(
+          tb_m_lines,
+          meta.currentPage,
+          meta.itemsPerPage,
+          null,
+          "created_dt",
+          null,
+          null,
+          true
+        );
         success(res, "Success", result);
       } else {
-        let result = await queryGET(tb_m_lines, whereCond);
+        let conditions = queryCondExacOpAnd(req.query);
+        let result = await queryGET(
+          tb_r_tools,
+          condDataNotDeleted + conditions + " ORDER BY created_dt DESC"
+        );
         success(res, "Success", result);
       }
     } catch (err) {
@@ -93,9 +103,10 @@ module.exports = {
 
       // Data yang akan diupdate
       const data = req.body;
+      console.log(data);
 
       // Kondisi where
-      const whereCond = `line_id = ${line_id}`;
+      const whereCond = `WHERE line_id = ${line_id}`;
 
       // Panggil queryPut dengan parameter yang sesuai
       await queryPUT(tb_m_lines, data, whereCond);
