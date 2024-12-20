@@ -28,7 +28,7 @@ module.exports = {
     try {
       // Mengambil parameter filter dari URL
       const filters = req.params.filters;
-      console.log(filters);
+      console.log("filters", filters);
 
       // Membangun kondisi WHERE dinamis
       let whereCond = condDataNotDeleted; // Kondisi default untuk memastikan data belum dihapus

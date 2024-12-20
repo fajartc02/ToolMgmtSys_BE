@@ -13,5 +13,11 @@ router.use("/users", require("./users"));
 router.use("/regrinding", require("./historyReg"));
 router.use("/setting", require("./historySetting"));
 router.use("/scrab", require("./scrab"));
+router.use("/grafik", require("./quality"));
+router.use("/master-tool", require("./masterTool"));
+router.use("/std-f-check", require("./stdCheck"));
+router.use("/tools-by-location", require("./ToolByLocation"));
+router.use("/first-check-history", require("./HistoryFirstCheck"));
+router.use("/auth", require("./authRoutes"));
 
 module.exports = router;

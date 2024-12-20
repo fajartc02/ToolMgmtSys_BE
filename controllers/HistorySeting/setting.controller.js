@@ -69,7 +69,13 @@ module.exports = {
       for (const history of settingHistories) {
         const conditionToolChecks = `WHERE tool_history_id = '${history.tool_history_id}'`;
         const checks = await queryGET(tb_r_tool_checks, conditionToolChecks);
-        toolChecks.push(...checks);
+        // Tambahkan date_check dari v_tools_histories ke setiap check
+        checks.forEach((check) => {
+          toolChecks.push({
+            ...check,
+            date_check: history.date_check, // Tambahkan tanggal pengecekan
+          });
+        });
       }
 
       if (toolChecks.length === 0) {
@@ -88,7 +94,10 @@ module.exports = {
             values: [],
           };
         }
-        combinedData[check.measuring_portion].values.push(check.value_check);
+        combinedData[check.measuring_portion].values.push({
+          value: check.value_check,
+          date: check.date_check, // Tambahkan tanggal ke dalam values
+        });
       });
 
       res.status(200).json({
