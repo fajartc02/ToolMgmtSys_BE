@@ -9,7 +9,8 @@ async function getPaginatedData(
   columnOrderDesc = null,
   joinCondition = null,
   joinColumns = null, // Tambahkan parameter untuk kolom yang di-join
-  hasDeletedDt = false // Default ke false jika tabel tidak memiliki deleted_dt
+  hasDeletedDt = false, // Default ke false jika tabel tidak memiliki deleted_dt
+  dateFormat = null
 ) {
   try {
     const offset = (currentPage - 1) * itemsPerPage;
@@ -49,10 +50,16 @@ async function getPaginatedData(
         ${itemsPerPage ? `LIMIT ${itemsPerPage} OFFSET ${adjustedOffset}` : ""}`
     );
 
-    // Format tanggal jika kolom created_dt ada
+    // Format tanggal sesuai dengan dateFormat yang dipilih
     dataResult.rows.forEach((row) => {
       if (row.created_dt) {
-        row.created_dt = moment(row.created_dt).format("DD-MM-YYYY");
+        if (dateFormat === "timestamp") {
+          // Jika dateFormat adalah 'timestamp', tampilkan dengan format waktu
+          row.created_dt = moment(row.created_dt).format("YYYY-MM-DD HH:mm:ss");
+        } else {
+          // Jika tidak ada dateFormat atau dateFormat bukan 'timestamp', tampilkan hanya tanggal
+          row.created_dt = moment(row.created_dt).format("DD-MM-YYYY");
+        }
       }
     });
 

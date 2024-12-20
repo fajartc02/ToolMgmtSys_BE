@@ -68,8 +68,15 @@ module.exports = {
       const toolChecks = [];
       for (const history of regrindingHistories) {
         const conditionToolChecks = `WHERE tool_history_id = '${history.tool_history_id}'`;
-        const checks = await queryGET(tb_r_tool_checks, conditionToolChecks);
-        toolChecks.push(...checks);
+        const checks = await queryGET("tb_r_tool_checks", conditionToolChecks);
+
+        // Tambahkan date_check dari v_tools_histories ke setiap check
+        checks.forEach((check) => {
+          toolChecks.push({
+            ...check,
+            date_check: history.date_check, // Tambahkan tanggal pengecekan
+          });
+        });
       }
 
       if (toolChecks.length === 0) {
@@ -85,10 +92,13 @@ module.exports = {
           combinedData[check.measuring_portion] = {
             lower_limit: check.lower_limit,
             upper_limit: check.upper_limit,
-            values: [],
+            values: [], // Simpan nilai dan tanggal
           };
         }
-        combinedData[check.measuring_portion].values.push(check.value_check);
+        combinedData[check.measuring_portion].values.push({
+          value: check.value_check,
+          date: check.date_check, // Tambahkan tanggal ke dalam values
+        });
       });
 
       res.status(200).json({
@@ -100,6 +110,7 @@ module.exports = {
       res.status(500).json({ message: `Server error: ${error.message}` });
     }
   },
+
   getRegrindingGraph: async (req, res) => {
     try {
       const parameter = req.params.period; // Mendapatkan parameter dari request
