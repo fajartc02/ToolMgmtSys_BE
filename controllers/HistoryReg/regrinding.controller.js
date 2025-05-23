@@ -18,7 +18,7 @@ module.exports = {
           meta.currentPage,
           meta.itemsPerPage,
           `system_activity = 'REGRINDING'`,
-          "tool_history_id",
+          "date_check",
           null,
           false // Set to false if v_tools_histories table does not have deleted_dt column
         );
