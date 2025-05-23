@@ -74,6 +74,7 @@ module.exports = {
               act_counter: req.body.headerData.act_counter,
               distribution_id: req.body.headerData.distribution_id,
               machine_id: req.body.headerData.machine_id,
+              system_problem: null,
             },
             ` WHERE tool_id = ${req.body.headerData.tool_id}`
           );
@@ -125,23 +126,65 @@ module.exports = {
       error(res, err);
     }
   },
+  // getToolHistories: async (req, res) => {
+  //   try {
+  //     let meta = req.query.meta;
+  //     if (meta) {
+  //       const result = await getPaginatedData(
+  //         "v_tools_histories",
+  //         meta.currentPage,
+  //         meta.itemsPerPage,
+  //         `tool_qr = '${req.query.tool_qr}'`,
+  //         "tool_history_id",
+  //         null,
+  //         false // Set to false if v_tools_histories table does not have deleted_dt column
+  //       );
+  //       success(res, "Success", result);
+  //     } else {
+  //       let result = await queryGET("v_tools_histories");
+  //       success(res, "Success", result);
+  //     }
+  //   } catch (err) {
+  //     console.log(err);
+  //     error(res, err);
+  //   }
+  // },
   getToolHistories: async (req, res) => {
     try {
       let meta = req.query.meta;
+      const toolQr = req.query.tool_qr;
+
       if (meta) {
+        const joinCondition = `
+        LEFT JOIN tb_r_tools_histories h ON v_tools_histories.tool_history_id = h.tool_history_id
+        LEFT JOIN tb_m_machines m ON h.machine_id = m.machine_id
+      `;
+
+        const joinColumns = `m.machine_nm`;
+
         const result = await getPaginatedData(
           "v_tools_histories",
           meta.currentPage,
           meta.itemsPerPage,
-          `tool_qr = '${req.query.tool_qr}'`,
-          "tool_history_id",
-          null,
-          false // Set to false if v_tools_histories table does not have deleted_dt column
+          `v_tools_histories.tool_qr = '${toolQr}'`,
+          "v_tools_histories.tool_history_id",
+          joinCondition,
+          joinColumns,
+          false
         );
+        // Tambahkan log data hasil query
+        console.log("[DEBUG] Data with machine_nm:", result.data);
         success(res, "Success", result);
       } else {
-        let result = await queryGET("v_tools_histories");
-        success(res, "Success", result);
+        const sql = `
+        SELECT vth.*, m.machine_nm
+        FROM v_tools_histories vth
+        LEFT JOIN tb_r_histories h ON vth.tool_history_id = h.tool_history_id
+        LEFT JOIN tb_m_machines m ON h.machine_id = m.machine_id
+        WHERE vth.tool_qr = '${req.query.tool_qr}'
+      `;
+        const result = await queryCustom(sql);
+        success(res, "Success", result.rows);
       }
     } catch (err) {
       console.log(err);

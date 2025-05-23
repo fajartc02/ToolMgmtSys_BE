@@ -130,8 +130,10 @@ module.exports = {
   // },
   getToolByLocation: async (req, res) => {
     try {
-      const meta = req.query.meta; // Memeriksa apakah meta ada
+      const meta = req.query.meta;
       const location = req.query.location;
+      const tool_qr = req.query.tool_qr;
+      console.log("req.query", req.query);
 
       // Jika lokasi adalah 'Tool Regrinding' atau 'Clean Room', kembalikan data kosong
       if (location === "Tool Regrinding" || location === "Clean Room") {
@@ -246,6 +248,7 @@ module.exports = {
         );
         return {
           ...tool,
+          tool_qr: toolInfo ? toolInfo.tool_qr : null,
           tool_no: toolInfo ? toolInfo.tool_no : null,
           machine_nm: machineInfo ? machineInfo.machine_nm : null, // Tambahkan machine_nm
         };
@@ -284,13 +287,23 @@ module.exports = {
         no: index + 1,
       }));
 
+      // Tambahkan logika filtering sebelum data dikirim ke FE
+      let finalResponseData = uniqueResponseData;
+
+      // Jika tool_qr ada di query, filter hanya yang memiliki tool_qr
+      if (tool_qr) {
+        finalResponseData = uniqueResponseData.filter(
+          (item) => item.tool_qr === tool_qr
+        );
+      }
+
       // Kirim respons dengan data dan meta
       success(res, "Success", {
-        data: uniqueResponseData,
+        data: finalResponseData,
         meta: {
           currentPage: meta?.currentPage || 1,
           itemsPerPage: meta?.itemsPerPage || 10,
-          totalData: uniqueResponseData.length,
+          totalData: finalResponseData.length,
         },
       });
     } catch (err) {

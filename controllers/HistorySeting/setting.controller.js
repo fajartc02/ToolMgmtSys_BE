@@ -12,12 +12,18 @@ module.exports = {
   getSetting: async (req, res) => {
     try {
       let meta = req.query.meta;
+      const tool_qr = req.query.tool_qr;
+      let whereCond = `system_activity = 'SETTING'`;
+      if (tool_qr) {
+        whereCond += ` AND tool_qr = '${tool_qr}'`;
+      }
+
       if (meta) {
         const result = await getPaginatedData(
           v_tools_histories,
           meta.currentPage,
           meta.itemsPerPage,
-          `system_activity = 'SETTING'`,
+          whereCond,
           "tool_history_id",
           null,
           false // Set to false if v_tools_histories table does not have deleted_dt column

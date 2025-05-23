@@ -19,5 +19,6 @@ router.use("/std-f-check", require("./stdCheck"));
 router.use("/tools-by-location", require("./ToolByLocation"));
 router.use("/first-check-history", require("./HistoryFirstCheck"));
 router.use("/auth", require("./authRoutes"));
+router.use("/tool-used-by-qr", require("./ToolUsedByQR"));
 
 module.exports = router;
