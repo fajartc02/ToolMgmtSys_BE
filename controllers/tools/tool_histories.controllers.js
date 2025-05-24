@@ -34,6 +34,15 @@ module.exports = {
           req.body.headerData.system_activity == "REGRINDING" &&
           req.body.checkData
         ) {
+          // Ambil reg_cnt terakhir berdasarkan tool_id
+          const lastRegCnt = await queryCustom(
+            `SELECT COALESCE(MAX(reg_cnt), 0) AS max_cnt FROM ${tb_r_tools_histories} WHERE tool_id = ${req.body.headerData.tool_id}`
+          );
+
+          // Set reg_cnt baru untuk data yang akan di-insert
+          const nextRegCnt = lastRegCnt[0].max_cnt + 1;
+          req.body.headerData.reg_cnt = nextRegCnt;
+
           await req.body.checkData.map(async (item) => {
             item.tool_check_id = GET_LAST_ID("tool_check_id", tb_r_tool_checks);
             item.tool_history_id = req.body.headerData.tool_history_id;
@@ -167,7 +176,7 @@ module.exports = {
           meta.currentPage,
           meta.itemsPerPage,
           `v_tools_histories.tool_qr = '${toolQr}'`,
-          "v_tools_histories.tool_history_id",
+          "v_tools_histories.date_check",
           joinCondition,
           joinColumns,
           false
