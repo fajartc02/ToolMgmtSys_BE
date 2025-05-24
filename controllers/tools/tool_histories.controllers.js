@@ -13,6 +13,7 @@ const {
   queryPostTransaction,
   queryPutTransaction,
   queryGET,
+  queryCustom,
 } = require("../../helpers/query");
 const GET_LAST_ID = require("../../functions/GET_LAST_ID");
 const queryCondExacOpAnd = require("../../helpers/queryCondExacOpAnd");
@@ -35,12 +36,14 @@ module.exports = {
           req.body.checkData
         ) {
           // Ambil reg_cnt terakhir berdasarkan tool_id
-          const lastRegCnt = await queryCustom(
-            `SELECT COALESCE(MAX(reg_cnt), 0) AS max_cnt FROM ${tb_r_tools_histories} WHERE tool_id = ${req.body.headerData.tool_id}`
+          const result = await queryCustom(
+            `SELECT COALESCE(MAX(reg_cnt), 0) AS max_cnt FROM tb_r_tools_histories WHERE tool_id = ${req.body.headerData.tool_id}`
           );
 
-          // Set reg_cnt baru untuk data yang akan di-insert
-          const nextRegCnt = lastRegCnt[0].max_cnt + 1;
+          // Pastikan ambil dari result.rows[0]
+          const lastRegCnt = result.rows?.[0]?.max_cnt || 0;
+          // Set nilai reg_cnt berikutnya
+          const nextRegCnt = lastRegCnt + 1;
           req.body.headerData.reg_cnt = nextRegCnt;
 
           await req.body.checkData.map(async (item) => {
