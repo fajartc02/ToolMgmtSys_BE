@@ -134,7 +134,7 @@ module.exports = {
   },
   queryDELETE: async (table, whereCond = "") => {
     return new Promise(async (resolve, reject) => {
-      let q = `DELETE FROM ${table} ${whereCond}`;
+      let q = `DELETE FROM ${table} ${whereCond} RETURNING *`;
       await database
         .query(q)
         .then((result) => {

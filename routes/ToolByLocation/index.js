@@ -6,6 +6,8 @@ const {
   getMachineForToolChange,
   getToolNo,
   addHistoriesNoQr,
+  editMachineFirstCheck,
+  getToolNoForTable,
 } = require("../../controllers/ToolbyLocation/toolByLocation.controller");
 
 var router = require("express").Router();
@@ -17,5 +19,7 @@ router.get("/history", getHistoryFCheck);
 router.get("/search-machines", getMachineForToolChange);
 router.get("/search-tools-no", getToolNo);
 router.post("/history-tool-no-qr", addHistoriesNoQr);
+router.put("/edit-machine", editMachineFirstCheck);
+router.get("/get-tool-no", getToolNoForTable);
 
 module.exports = router;

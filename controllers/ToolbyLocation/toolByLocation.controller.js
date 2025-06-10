@@ -13,6 +13,8 @@ const {
   queryTransaction,
   queryPOST,
   queryPUT,
+  queryCustom,
+  queryDELETE,
 } = require("../../helpers/query");
 const GET_LAST_ID = require("../../functions/GET_LAST_ID");
 const queryCondExacOpAnd = require("../../helpers/queryCondExacOpAnd");
@@ -249,7 +251,7 @@ module.exports = {
         return {
           ...tool,
           tool_qr: toolInfo ? toolInfo.tool_qr : null,
-          tool_no: toolInfo ? toolInfo.tool_no : null,
+          tool_nm: toolInfo ? toolInfo.tool_no : null,
           machine_nm: machineInfo ? machineInfo.machine_nm : null, // Tambahkan machine_nm
         };
       });
@@ -262,7 +264,7 @@ module.exports = {
         );
         return {
           ...tool,
-          tool_no: toolNameInfo ? toolNameInfo.tool_nm : null,
+          tool_nm: toolNameInfo ? toolNameInfo.tool_nm : null,
           machine_nm: machineInfo ? machineInfo.machine_nm : null, // Tambahkan machine_nm
         };
       });
@@ -625,6 +627,182 @@ module.exports = {
     } catch (error) {
       console.error("Error saving data:", error);
       res.status(500).json({ message: "Internal server error", error });
+    }
+  },
+  editMachineFirstCheck: async (req, res) => {
+    try {
+      const { payload } = req.body;
+      const {
+        old_machine_id,
+        new_machine_id,
+        tool_qr,
+        system_activity,
+        location,
+      } = payload;
+
+      console.log("🟡 Payload diterima:", payload);
+
+      // 1. Validasi lokasi ke distribution_id
+      const distributionMap = {
+        "Cylinder Head": 8,
+        "Cam Shaft": 7,
+        "Cylinder Block": 9,
+        "Crank Shaft": 10,
+      };
+
+      const distribution_id = distributionMap[location];
+      if (!distribution_id) {
+        throw new Error("Invalid location provided");
+      }
+
+      // 2. Ambil tool_type_id berdasarkan tool_qr
+      const toolResult = await queryGET(
+        "tb_r_tools",
+        `WHERE tool_qr = '${tool_qr}'`,
+        ["tool_type_id"]
+      );
+
+      if (!toolResult.length) {
+        throw new Error("Tool not found based on tool_qr");
+      }
+
+      const tool_type_id = toolResult[0].tool_type_id;
+      console.log("✅ tool_type_id:", tool_type_id);
+
+      // 3. Ambil semua tool_id dengan tool_type_id yang sama
+      const relatedTools = await queryGET(
+        "tb_r_tools",
+        `WHERE tool_type_id = ${tool_type_id}`,
+        ["tool_id"]
+      );
+
+      const relatedToolIds = relatedTools.map((t) => parseInt(t.tool_id));
+      console.log("✅ relatedToolIds:", relatedToolIds);
+
+      if (!relatedToolIds.length) {
+        throw new Error("No tools found for this type");
+      }
+
+      // 4. Ambil satu data terakhir yang USED dari mesin lama
+      const relatedToolIdsStr = `(${relatedToolIds.join(",")})`;
+      const historyQuery = `
+  SELECT tool_history_id, tool_id 
+  FROM tb_r_tools_histories 
+  WHERE system_activity = 'USED' 
+    AND machine_id = ${old_machine_id}
+    AND tool_id IN ${relatedToolIdsStr}
+  ORDER BY created_dt DESC
+  LIMIT 1
+`;
+
+      const usedHistory = await queryCustom(historyQuery);
+      console.log("✅ USED History Found:", usedHistory);
+
+      if (!usedHistory?.rows?.length) {
+        return res
+          .status(200)
+          .json({ message: "No matching USED tool history found" });
+      }
+
+      const { tool_history_id, tool_id: used_tool_id } = usedHistory.rows[0];
+
+      // lanjut delete dan update seperti biasa
+      await queryDELETE(
+        "tb_r_tools_histories",
+        `WHERE tool_history_id = ${tool_history_id}`
+      );
+      await queryPUT(
+        "tb_t_tools_positions",
+        { distribution_id },
+        `WHERE tool_id = ${used_tool_id}`
+      );
+      await queryPUT(
+        "tb_t_tools_positions",
+        { machine_id: new_machine_id },
+        `WHERE tool_id = ${payload.tool_id}`
+      );
+      await queryPUT(
+        "tb_r_tools_histories",
+        {
+          machine_id: new_machine_id,
+        },
+        `WHERE tool_history_id = ${payload.tool_history_id}`
+      );
+      // 5. Cari tool_id yang sudah USED di mesin baru dan masih 1 tool_type_id
+      const historyUsedNewMachineQuery = `
+                                SELECT tool_id 
+                                FROM tb_r_tools_histories 
+                                WHERE system_activity = '${system_activity}'
+                                  AND machine_id = ${new_machine_id}
+                                  AND tool_id IN ${relatedToolIdsStr}
+                                ORDER BY created_dt DESC
+                                LIMIT 1
+                              `;
+
+      const usedInNewMachine = await queryCustom(historyUsedNewMachineQuery);
+
+      if (!usedInNewMachine?.rows?.length) {
+        throw new Error("No USED tools found in new machine for this type");
+      }
+
+      const target_tool_id = usedInNewMachine.rows[0].tool_id;
+      // Ambil ID terakhir untuk tool_f_check_id
+      const new_tool_history_id = await GET_LAST_ID(
+        "tool_history_id",
+        "tb_r_tools_histories"
+      );
+
+      // Buat entri baru untuk tool tersebut
+      await queryPOST("tb_r_tools_histories", {
+        tool_history_id: new_tool_history_id,
+        tool_id: target_tool_id,
+        machine_id: new_machine_id,
+        system_activity: "USED",
+      });
+
+      res.status(200).json({ message: "Success" });
+    } catch (error) {
+      console.error("❌ editMachineFirstCheck error:", error.message);
+      res.status(500).json({
+        message: "Something went wrong",
+        detail: error.message,
+      });
+    }
+  },
+  getToolNoForTable: async (req, res) => {
+    try {
+      const location = req.query.location;
+      console.log("location", location);
+
+      // Map lokasi ke line_id
+      const lineMap = {
+        "Cam Shaft": 0,
+        "Crank Shaft": 1,
+        "Cylinder Head": 2,
+        "Cylinder Block": 3,
+      };
+
+      const line_id = lineMap[location];
+
+      if (line_id === undefined) {
+        return res.status(400).json({
+          message: "Invalid location",
+        });
+      }
+
+      // Ambil data tools berdasarkan line_id
+      const toolResult = await queryGET(
+        "tb_m_master_tools_f_check",
+        `WHERE line_id = ${line_id}`
+      );
+
+      res.status(200).json({ message: "Success", data: toolResult });
+    } catch (error) {
+      console.error("❌ getToolNoForTable error:", error.message);
+      res.status(500).json({
+        message: "Something went wrong",
+        detail: error.message,
+      });
     }
   },
 };
