@@ -1,4 +1,7 @@
-const { tb_m_master_tools_f_check } = require("../../config/table");
+const {
+  tb_m_master_tools_f_check,
+  tb_m_tool_types,
+} = require("../../config/table");
 const getPaginatedData = require("../../functions/PAGINATION");
 const {
   queryGET,
@@ -53,6 +56,17 @@ module.exports = {
         // Ambil ID  terakhir dari tb_m_drawings
         let tool_id = await GET_LAST_ID("tool_id", tb_m_master_tools_f_check);
         req.body.tool_id = tool_id;
+        let new_tool_type_id = await GET_LAST_ID(
+          "tool_type_id",
+          tb_m_tool_types
+        );
+        const drawing = {
+          tool_type_id: new_tool_type_id,
+          tool_type_nm: req.body.tool_nm,
+          tool_type_desc: req.body.process_nm,
+          std_counter: req.body.std_ctr,
+        };
+        await queryPOST(tb_m_tool_types, drawing, db);
 
         // Set additional fields
         req.body.created_dt = moment().format("YYYY-MM-DD HH:mm:ss");
@@ -60,7 +74,7 @@ module.exports = {
         req.body.deleted_dt = null;
 
         // Insert data baru ke tb_m_drawings
-        console.log(req.body);
+
         let responseInserted = await queryPOST(
           tb_m_master_tools_f_check,
           req.body,

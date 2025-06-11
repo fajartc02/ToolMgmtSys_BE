@@ -1,4 +1,7 @@
-const { tb_m_tool_types } = require("../../config/table");
+const {
+  tb_m_tool_types,
+  tb_m_master_tools_f_check,
+} = require("../../config/table");
 const getPaginatedData = require("../../functions/PAGINATION");
 const {
   queryPOST,
@@ -44,7 +47,17 @@ module.exports = {
         // Ambil ID gambar terakhir dari tb_m_drawings
         let tool_type_id = await GET_LAST_ID("tool_type_id", tb_m_tool_types);
         req.body.tool_type_id = tool_type_id;
-
+        let new_tool_id = await GET_LAST_ID(
+          "tool_id",
+          tb_m_master_tools_f_check
+        );
+        const tool_id = new_tool_id;
+        const drawing = {
+          tool_id,
+          tool_nm: req.body.tool_type_nm,
+          process_nm: req.body.tool_type_desc,
+          std_ctr: req.body.std_counter,
+        };
         // Set additional fields
         req.body.created_dt = moment().format("YYYY-MM-DD HH:mm:ss");
         req.body.deleted_by = null;
@@ -54,9 +67,7 @@ module.exports = {
         if (req.file) {
           req.body.ilustrations = `uploads/${req.file.filename}`; // Simpan path file atau sesuai kebutuhan
         }
-
-        // Insert data baru ke tb_m_drawings
-        console.log(req.body);
+        await queryPOST(tb_m_master_tools_f_check, drawing, db);
         let responseInserted = await queryPOST(tb_m_tool_types, req.body, db);
         return responseInserted;
       });

@@ -133,9 +133,8 @@ module.exports = {
   getToolByLocation: async (req, res) => {
     try {
       const meta = req.query.meta;
+      const machine_id = req.query.machine_id;
       const location = req.query.location;
-      const tool_qr = req.query.tool_qr;
-      console.log("req.query", req.query);
 
       // Jika lokasi adalah 'Tool Regrinding' atau 'Clean Room', kembalikan data kosong
       if (location === "Tool Regrinding" || location === "Clean Room") {
@@ -291,11 +290,14 @@ module.exports = {
 
       // Tambahkan logika filtering sebelum data dikirim ke FE
       let finalResponseData = uniqueResponseData;
+      console.log("machine_id dari FE", machine_id);
 
+      console.log("sample data", uniqueResponseData.slice(0, 3));
       // Jika tool_qr ada di query, filter hanya yang memiliki tool_qr
-      if (tool_qr) {
+      if (machine_id !== undefined) {
+        const machineIdNum = Number(machine_id);
         finalResponseData = uniqueResponseData.filter(
-          (item) => item.tool_qr === tool_qr
+          (item) => item.machine_id === machineIdNum
         );
       }
 
@@ -640,7 +642,7 @@ module.exports = {
         location,
       } = payload;
 
-      console.log("🟡 Payload diterima:", payload);
+      // console.log("🟡 Payload diterima:", payload);
 
       // 1. Validasi lokasi ke distribution_id
       const distributionMap = {
@@ -667,7 +669,7 @@ module.exports = {
       }
 
       const tool_type_id = toolResult[0].tool_type_id;
-      console.log("✅ tool_type_id:", tool_type_id);
+      // console.log("✅ tool_type_id:", tool_type_id);
 
       // 3. Ambil semua tool_id dengan tool_type_id yang sama
       const relatedTools = await queryGET(
@@ -677,7 +679,7 @@ module.exports = {
       );
 
       const relatedToolIds = relatedTools.map((t) => parseInt(t.tool_id));
-      console.log("✅ relatedToolIds:", relatedToolIds);
+      // console.log("✅ relatedToolIds:", relatedToolIds);
 
       if (!relatedToolIds.length) {
         throw new Error("No tools found for this type");
@@ -696,7 +698,7 @@ module.exports = {
 `;
 
       const usedHistory = await queryCustom(historyQuery);
-      console.log("✅ USED History Found:", usedHistory);
+      // console.log("✅ USED History Found:", usedHistory);
 
       if (!usedHistory?.rows?.length) {
         return res
@@ -772,7 +774,7 @@ module.exports = {
   getToolNoForTable: async (req, res) => {
     try {
       const location = req.query.location;
-      console.log("location", location);
+      // console.log("location", location);
 
       // Map lokasi ke line_id
       const lineMap = {
