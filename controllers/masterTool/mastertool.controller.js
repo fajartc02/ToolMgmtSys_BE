@@ -6,6 +6,7 @@ const getPaginatedData = require("../../functions/PAGINATION");
 const {
   queryGET,
   queryCondExacOpAnd,
+  queryCustom,
   queryTransaction,
   queryPOST,
   queryPUT,
@@ -14,11 +15,19 @@ const {
 const moment = require("moment");
 const { error, success } = require("../../helpers/response");
 const GET_LAST_ID = require("../../functions/GET_LAST_ID");
+const { login } = require("../authController");
 
 module.exports = {
   getMasterTool: async (req, res) => {
     try {
       let meta = req.query.meta;
+      const line_id = req.query.line_id;
+      const tool_id = req.query.tool_id;
+      console.log("meta", meta);
+
+      console.log("tool_id", tool_id);
+      console.log("line_id", line_id);
+
       // Konfigurasi JOIN untuk mengambil `line_nm` dari `tb_m_lines`
       const joinCondition = `
     LEFT JOIN tb_m_lines ON tb_m_master_tools_f_check.line_id = tb_m_lines.line_id
@@ -36,14 +45,46 @@ module.exports = {
           joinColumns,
           true
         );
+
         success(res, "Success", result);
       } else {
-        let conditions = queryCondExacOpAnd(req.query);
-        let result = await queryGET(
-          tb_m_master_tools_f_check,
-          condDataNotDeleted + conditions + " ORDER BY created_dt DESC"
-        );
-        success(res, "Success", result);
+        console.log("🟢 MASUK TANPA PAGINATION");
+
+        // Bangun kondisi filter dinamis
+        let filters = "WHERE fc.deleted_dt IS NULL";
+
+        if (line_id) {
+          filters += ` AND fc.line_id = ${line_id}`;
+        }
+
+        if (tool_id) {
+          filters += ` AND fc.tool_id = ${tool_id}`;
+        }
+
+        // Query SQL lengkap
+        const q = `
+                    SELECT 
+                      fc.*, 
+                      l.line_nm
+                    FROM tb_m_master_tools_f_check fc
+                    LEFT JOIN tb_m_lines l ON fc.line_id = l.line_id
+                    ${filters}
+                    ORDER BY fc.created_dt DESC
+                  `;
+
+        const result = await queryCustom(q);
+        // Tambahkan properti `no` ke setiap item di rows
+        const withNumbering = result.rows.map((item, index) => ({
+          no: index + 1,
+          ...item,
+        }));
+        // Kirim ke FE sesuai format Vuex kamu: response.data.data.data
+        res.status(200).json({
+          message: "Success",
+          data: {
+            data: withNumbering,
+          },
+        });
       }
     } catch (err) {
       console.error(err);

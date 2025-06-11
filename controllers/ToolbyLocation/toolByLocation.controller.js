@@ -319,6 +319,7 @@ module.exports = {
   getStdToolFCheck: async (req, res) => {
     try {
       const { tool_nm, location } = req.query;
+      console.log("req.query", req.query);
 
       // Validasi input
       if (!tool_nm || !location) {
@@ -337,9 +338,14 @@ module.exports = {
           .json({ message: "Line not found for the given location" });
       }
       const line_id = lineResult[0].line_id;
+      console.log("line_id", line_id);
 
       // Ambil tool_id berdasarkan tool_no dan line_id
-      const toolCondition = `WHERE tool_nm LIKE '%${tool_nm}%' AND line_id = '${line_id}'`;
+      const toolCondition = `
+                              WHERE LOWER('${tool_nm}') LIKE CONCAT('%', LOWER(tool_nm), '%') 
+                              AND line_id = '${line_id}'
+                            `;
+
       const toolResult = await queryGET(
         tb_m_master_tools_f_check,
         toolCondition,
@@ -352,6 +358,7 @@ module.exports = {
         });
       }
       const tool_id = toolResult[0].tool_id;
+      console.log("tool_id", tool_id);
 
       // Ambil data dari tb_m_tools_f_check_std berdasarkan tool_id
       const stdCondition = `WHERE tool_id = '${tool_id}' ORDER BY tool_f_check_std_id ASC`;
@@ -488,20 +495,27 @@ module.exports = {
         });
       }
 
-      // Ambil data gauge dan qty_check dari tb_m_tool_f_check_std
-      const stdToolCondition = `WHERE tool_id IN (${toolIds
-        .map((id) => `'${id}'`)
-        .join(",")})`;
+      // 🔁 Dapatkan semua tool_f_check_std_id dari hasil di atas
+      const stdIds = stdResult.map((item) => item.tool_f_check_std_id);
+      console.log("stdIds", stdIds);
+
+      // Buat kondisi SQL gabungan
+      const stdToolCondition = `
+            WHERE tool_id IN (${toolIds.map((id) => `'${id}'`).join(",")})
+              AND tool_f_check_std_id IN (${stdIds
+                .map((id) => `'${id}'`)
+                .join(",")})
+          `;
       const stdToolResult = await queryGET(
         tb_m_tools_f_check_std,
         stdToolCondition,
-        ["tool_id", "gauge", "qty_check"]
+        ["tool_id", "tool_f_check_std_id", "gauge", "qty_check"]
       );
 
-      // Gabungkan data stdResult dengan stdToolResult berdasarkan tool_id
       const mergedResult = stdResult.map((stdItem) => {
         const toolData = stdToolResult.find(
-          (toolItem) => toolItem.tool_id === stdItem.tool_id
+          (toolItem) =>
+            toolItem.tool_f_check_std_id === stdItem.tool_f_check_std_id
         );
         return {
           ...stdItem,
@@ -509,7 +523,6 @@ module.exports = {
           qty_check: toolData ? toolData.qty_check : null,
         };
       });
-
       // Return data
       res.status(200).json({ message: "Success", data: mergedResult });
     } catch (error) {
