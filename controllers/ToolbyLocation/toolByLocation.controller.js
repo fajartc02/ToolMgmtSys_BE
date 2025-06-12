@@ -318,16 +318,15 @@ module.exports = {
 
   getStdToolFCheck: async (req, res) => {
     try {
-      const { tool_nm, location } = req.query;
+      const { tool_no, tool_nm, location, machine_id } = req.query;
       console.log("req.query", req.query);
 
       // Validasi input
-      if (!tool_nm || !location) {
+      if (!tool_no || !tool_nm || !location || !machine_id) {
         return res
           .status(400)
           .json({ message: "tool_no and location are required" });
       }
-
       // Ambil line_id berdasarkan location
       const lineCondition = `WHERE line_nm = '${location}'`; // Parameter dimasukkan langsung
       const lineResult = await queryGET(tb_m_lines, lineCondition, ["line_id"]);
@@ -340,10 +339,23 @@ module.exports = {
       const line_id = lineResult[0].line_id;
       console.log("line_id", line_id);
 
+      // Ambil op_no berdasarkan machine_id
+      const opCondition = `WHERE machine_id = '${machine_id}'`;
+
+      const opResult = await queryGET(tb_m_machines, opCondition, ["op_no"]);
+      if (!opResult.length) {
+        return res
+          .status(404)
+          .json({ message: "Operation not found for the given machine_id" });
+      }
+      const rawOpNo = opResult[0].op_no;
+      const op_no = rawOpNo.replace(/[A-Za-z]+$/, "");
+
+      console.log("op_no", op_no);
+
       // Ambil tool_id berdasarkan tool_no dan line_id
       const toolCondition = `
-                              WHERE LOWER('${tool_nm}') LIKE CONCAT('%', LOWER(tool_nm), '%') 
-                              AND line_id = '${line_id}'
+                              WHERE line_id = '${line_id}' AND tool_no = '${tool_no}' AND op_no = '${op_no}'
                             `;
 
       const toolResult = await queryGET(
