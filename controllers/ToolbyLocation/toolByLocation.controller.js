@@ -290,9 +290,9 @@ module.exports = {
 
       // Tambahkan logika filtering sebelum data dikirim ke FE
       let finalResponseData = uniqueResponseData;
-      console.log("machine_id dari FE", machine_id);
+      // console.log("machine_id dari FE", machine_id);
 
-      console.log("sample data", uniqueResponseData.slice(0, 3));
+      // console.log("sample data", uniqueResponseData.slice(0, 3));
       // Jika tool_qr ada di query, filter hanya yang memiliki tool_qr
       if (machine_id !== undefined) {
         const machineIdNum = Number(machine_id);
@@ -319,7 +319,7 @@ module.exports = {
   getStdToolFCheck: async (req, res) => {
     try {
       const { tool_no, tool_nm, location, machine_id } = req.query;
-      console.log("req.query", req.query);
+      // console.log("req.query", req.query);
 
       // Validasi input
       if (!tool_no || !tool_nm || !location || !machine_id) {
@@ -337,7 +337,7 @@ module.exports = {
           .json({ message: "Line not found for the given location" });
       }
       const line_id = lineResult[0].line_id;
-      console.log("line_id", line_id);
+      // console.log("line_id", line_id);
 
       // Ambil op_no berdasarkan machine_id
       const opCondition = `WHERE machine_id = '${machine_id}'`;
@@ -351,7 +351,7 @@ module.exports = {
       const rawOpNo = opResult[0].op_no;
       const op_no = rawOpNo.replace(/[A-Za-z]+$/, "");
 
-      console.log("op_no", op_no);
+      // console.log("op_no", op_no);
 
       // Ambil tool_id berdasarkan tool_no dan line_id
       const toolCondition = `
@@ -370,7 +370,7 @@ module.exports = {
         });
       }
       const tool_id = toolResult[0].tool_id;
-      console.log("tool_id", tool_id);
+      // console.log("tool_id", tool_id);
 
       // Ambil data dari tb_m_tools_f_check_std berdasarkan tool_id
       const stdCondition = `WHERE tool_id = '${tool_id}' ORDER BY tool_f_check_std_id ASC`;
@@ -799,7 +799,7 @@ module.exports = {
   getToolNoForTable: async (req, res) => {
     try {
       const location = req.query.location;
-      // console.log("location", location);
+      console.log("location", location);
 
       // Map lokasi ke line_id
       const lineMap = {
