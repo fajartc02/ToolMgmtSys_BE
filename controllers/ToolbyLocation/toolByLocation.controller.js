@@ -430,6 +430,17 @@ module.exports = {
             tool_no: measurement.tool_no,
           };
 
+          // Tambah logika untuk tool_history_id vs tool_history_no_qr_id
+          if (measurement.tool_qr) {
+            cleanMeasurement.tool_history_id =
+              measurement.tool_history_id || null;
+            cleanMeasurement.tool_history_no_qr_id = null;
+          } else {
+            cleanMeasurement.tool_history_id = null;
+            cleanMeasurement.tool_history_no_qr_id =
+              measurement.tool_history_id || null;
+          }
+
           // Ambil ID terakhir untuk tool_f_check_id
           const tool_f_check_id = await GET_LAST_ID(
             "tool_f_check_id",
