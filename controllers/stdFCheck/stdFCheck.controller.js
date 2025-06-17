@@ -113,6 +113,7 @@ module.exports = {
   addSdtFCheck: async (req, res) => {
     try {
       console.log("req.body", req.body);
+
       if (!Array.isArray(req.body) || req.body.length === 0) {
         throw new Error("Request body must be an array of measurements");
       }
@@ -147,15 +148,22 @@ module.exports = {
             cleanMeasurement.units === null ||
             cleanMeasurement.system_std_used === null;
 
-          const whereCond = `WHERE tool_id = ${cleanMeasurement.tool_id} AND measuring_portion = '${cleanMeasurement.measuring_portion}' AND deleted_dt IS NULL`;
+          // ==== CASE 1: UPDATE (tool_f_check_std_id EXISTS) ====
+          if (measurement.tool_f_check_std_id) {
+            const stdId = measurement.tool_f_check_std_id;
 
-          const existingRecord = await db.query(
-            `SELECT * FROM ${tb_m_tools_f_check_std} ${whereCond}`
-          );
+            const oldDataQuery = await db.query(`
+            SELECT * FROM ${tb_m_tools_f_check_std} 
+            WHERE tool_f_check_std_id = ${stdId} AND deleted_dt IS NULL
+          `);
 
-          if (existingRecord.rows.length > 0) {
-            // Update existing record
-            const oldData = existingRecord.rows[0];
+            if (oldDataQuery.rows.length === 0) {
+              throw new Error(
+                `No record found for tool_f_check_std_id ${stdId}`
+              );
+            }
+
+            const oldData = oldDataQuery.rows[0];
 
             const setClause = Object.keys(cleanMeasurement)
               .map(
@@ -168,17 +176,17 @@ module.exports = {
               )
               .join(", ");
 
-            await db.query(
-              `UPDATE ${tb_m_tools_f_check_std} SET ${setClause} WHERE tool_id = ${cleanMeasurement.tool_id} AND measuring_portion = '${cleanMeasurement.measuring_portion}'`
-            );
+            await db.query(`
+            UPDATE ${tb_m_tools_f_check_std} 
+            SET ${setClause} 
+            WHERE tool_f_check_std_id = ${stdId}
+          `);
 
-            // Check if upper/lower limit changed
             const isLimitChanged =
               cleanMeasurement.upper_limit !== oldData.upper_limit ||
               cleanMeasurement.lower_limit !== oldData.lower_limit;
 
             if (isLimitChanged) {
-              // Update related tb_r_tool_f_checks status
               const resultChecks = await db.query(`
               SELECT * FROM tb_r_tool_f_checks 
               WHERE tool_id = ${cleanMeasurement.tool_id}
@@ -192,7 +200,6 @@ module.exports = {
                 const value = parseFloat(valueRaw);
                 const lower = parseFloat(cleanMeasurement.lower_limit);
                 const upper = parseFloat(cleanMeasurement.upper_limit);
-
                 const isNumeric = !isNaN(value);
 
                 if (isNumeric && !isNaN(lower) && !isNaN(upper)) {
@@ -200,7 +207,6 @@ module.exports = {
                     newStatus = "OK";
                   }
                 } else {
-                  // if non-numeric value_check, use the value as status if valid
                   newStatus = valueRaw?.toUpperCase() === "OK" ? "OK" : "NG";
                 }
 
@@ -212,7 +218,22 @@ module.exports = {
               }
             }
           } else {
-            // Insert new record
+            // ==== CASE 2: INSERT ====
+            const whereCond = `WHERE tool_id = ${cleanMeasurement.tool_id} 
+                             AND measuring_portion = '${cleanMeasurement.measuring_portion}' 
+                             AND gauge = '${cleanMeasurement.gauge}' 
+                             AND deleted_dt IS NULL`;
+
+            const existingRecord = await db.query(
+              `SELECT * FROM ${tb_m_tools_f_check_std} ${whereCond}`
+            );
+
+            if (existingRecord.rows.length > 0) {
+              throw new Error(
+                "Duplicate record found. Use tool_f_check_std_id to update."
+              );
+            }
+
             const tool_f_check_std_id = await GET_LAST_ID(
               "tool_f_check_std_id",
               tb_m_tools_f_check_std
