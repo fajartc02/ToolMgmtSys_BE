@@ -373,7 +373,7 @@ module.exports = {
       // console.log("tool_id", tool_id);
 
       // Ambil data dari tb_m_tools_f_check_std berdasarkan tool_id
-      const stdCondition = `WHERE tool_id = '${tool_id}' ORDER BY tool_f_check_std_id ASC`;
+      const stdCondition = `WHERE tool_id = '${tool_id}' AND deleted_dt IS NULL ORDER BY tool_f_check_std_id ASC`;
       const stdResult = await queryGET(tb_m_tools_f_check_std, stdCondition);
 
       if (!stdResult.length) {
