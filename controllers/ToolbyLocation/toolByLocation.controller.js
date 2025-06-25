@@ -24,112 +24,6 @@ const moment = require("moment");
 const condDataNotDeleted = `WHERE deleted_dt IS NULL`;
 
 module.exports = {
-  // getToolByLocation: async (req, res) => {
-  //   try {
-  //     const meta = req.query.meta; // Memeriksa apakah meta ada
-  //     // console.log(req.query);
-
-  //     const location = req.query.location;
-
-  //     // Jika location adalah 'Tool Regrinding' atau 'Clean Room', kembalikan data kosong
-  //     if (location === "Tool Regrinding" || location === "Clean Room") {
-  //       return success(res, "No data available for this location", {
-  //         data: [], // Data kosong
-  //         meta: {
-  //           currentPage: meta?.currentPage || 1,
-  //           itemsPerPage: meta?.itemsPerPage || 10,
-  //           totalData: 0,
-  //         },
-  //       });
-  //     }
-
-  //     // Step 1: Ambil line_id berdasarkan lokasi
-  //     const lineCondition = `${condDataNotDeleted} AND line_nm = '${location}'`;
-  //     const lineData = await queryGET(tb_m_lines, lineCondition, ["line_id"]);
-
-  //     if (!lineData || lineData.length === 0) {
-  //       return success(res, "No data found for the given location", []);
-  //     }
-
-  //     const lineIds = lineData.map((line) => line.line_id);
-
-  //     // Step 2: Ambil machine_id dan machine_nm berdasarkan line_id
-  //     const machineCondition = `${condDataNotDeleted} AND line_id IN (${lineIds.join(
-  //       ","
-  //     )})`;
-  //     const machineData = await queryGET(tb_m_machines, machineCondition, [
-  //       "machine_id",
-  //       "machine_nm",
-  //     ]);
-
-  //     if (!machineData || machineData.length === 0) {
-  //       return success(res, "No machines found for the given location", []);
-  //     }
-
-  //     const machineIds = machineData.map((machine) => machine.machine_id);
-
-  //     // Step 3: Ambil data dari tb_r_tools_histories dengan atau tanpa pagination
-  //     let toolHistoryCondition = `
-  //           system_activity = 'IN USED'
-  //           AND machine_id IN (${machineIds.join(",")})
-  //         `;
-
-  //     let toolHistories;
-  //     if (meta) {
-  //       // Jika meta ada, gunakan getPaginatedData untuk mengambil data dengan paginasi
-  //       toolHistories = await getPaginatedData(
-  //         tb_r_tools_histories,
-  //         meta.currentPage,
-  //         meta.itemsPerPage,
-  //         toolHistoryCondition,
-  //         "created_dt",
-  //         null,
-  //         null,
-  //         false, // Menandakan kolom deleted_dt tidak digunakan (karena tabel tidak memiliki deleted_dt)
-  //         "timestamp"
-  //       );
-  //     } else {
-  //       // Jika meta tidak ada, ambil data tanpa paginasi
-  //       toolHistories = await queryGET(
-  //         tb_r_tools_histories,
-  //         toolHistoryCondition + " ORDER BY created_dt DESC"
-  //       );
-  //     }
-
-  //     // Step 4: Ambil tool_id dari toolHistories
-  //     const toolIds = toolHistories.data.map((tool) => tool.tool_id);
-  //     const uniqueToolIds = [...new Set(toolIds)]; // Menghilangkan duplikasi tool_id
-
-  //     // Step 5: Ambil tool_no berdasarkan tool_id dari tb_r_tools
-  //     const toolData = await queryGET(
-  //       tb_r_tools,
-  //       `tool_no WHERE tool_id IN (${uniqueToolIds.join(",")})`
-  //     );
-
-  //     const responseData = toolHistories.data.map((tool) => {
-  //       const toolInfo = toolData.find((t) => t.tool_id === tool.tool_id);
-  //       const machineInfo = machineData.find(
-  //         (m) => m.machine_id === tool.machine_id
-  //       );
-  //       // Tambahkan log untuk melihat created_dt
-  //       // console.log("tool.created_dt:", tool.created_dt);
-
-  //       return {
-  //         ...tool,
-  //         tool_no: toolInfo ? toolInfo.tool_no : null,
-  //         machine_nm: machineInfo ? machineInfo.machine_nm : null,
-  //         created_dt: tool.created_dt,
-  //       };
-  //     });
-  //     // console.log("responseData", responseData);
-
-  //     // Kirim respons dengan data dan meta (jika ada)
-  //     success(res, "Success", { ...toolHistories, data: responseData });
-  //   } catch (err) {
-  //     console.error(err);
-  //     error(res, err.message);
-  //   }
-  // },
   getToolByLocation: async (req, res) => {
     try {
       const meta = req.query.meta;
@@ -175,7 +69,7 @@ module.exports = {
 
       // Step 3: Ambil data dari tb_r_tools_histories dan tb_r_histories_tool_no_qr
       const toolHistoryCondition = `
-        system_activity = 'IN USED' 
+        system_activity = 'IN USED'
         AND machine_id IN (${machineIds.join(",")})
       `;
 
