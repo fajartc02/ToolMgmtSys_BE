@@ -69,7 +69,7 @@ module.exports = {
 
       // Step 3: Ambil data dari tb_r_tools_histories dan tb_r_histories_tool_no_qr
       const toolHistoryCondition = `
-        system_activity = 'IN USED'
+       WHERE system_activity = 'IN USED'
         AND machine_id IN (${machineIds.join(",")})
       `;
 
@@ -77,39 +77,22 @@ module.exports = {
       let noQrHistories = { data: [], meta: {} };
 
       if (meta) {
-        // Dengan pagination
-        toolHistories = await getPaginatedData(
-          tb_r_tools_histories,
-          meta.currentPage,
-          meta.itemsPerPage,
-          toolHistoryCondition,
-          "created_dt",
-          null,
-          null,
-          false // Tidak ada deleted_dt
-        );
+        // Ambil semua data dulu, baru kita gabungkan dan paginasi manual
+        toolHistories = {
+          data: await queryGET(
+            tb_r_tools_histories,
+            toolHistoryCondition + " ORDER BY created_dt DESC"
+          ),
+          meta: {},
+        };
 
-        noQrHistories = await getPaginatedData(
-          tb_r_histories_tool_no_qr,
-          meta.currentPage,
-          meta.itemsPerPage,
-          toolHistoryCondition,
-          "created_dt",
-          null,
-          null,
-          false // Tidak ada deleted_dt
-        );
-      } else {
-        // Tanpa pagination
-        toolHistories = await queryGET(
-          "tb_r_tools_histories",
-          toolHistoryCondition + " ORDER BY created_dt DESC"
-        );
-
-        noQrHistories = await queryGET(
-          "tb_r_histories_tool_no_qr",
-          toolHistoryCondition + " ORDER BY created_dt DESC"
-        );
+        noQrHistories = {
+          data: await queryGET(
+            tb_r_histories_tool_no_qr,
+            toolHistoryCondition + " ORDER BY created_dt DESC"
+          ),
+          meta: {},
+        };
       }
 
       // Step 4: Ambil tool_no dan tool_nm berdasarkan tool_id
@@ -171,10 +154,10 @@ module.exports = {
       const sortedResponseData = responseData
         .map((item) => ({
           ...item,
-          isoCreatedDt: item.created_dt.split("-").reverse().join("-"), // Properti sementara untuk sorting
+          isoCreatedDt: moment(item.created_dt),
         }))
-        .sort((a, b) => new Date(b.isoCreatedDt) - new Date(a.isoCreatedDt)) // Urutkan
-        .map(({ isoCreatedDt, ...rest }) => rest); // Hapus properti sementara
+        .sort((a, b) => b.isoCreatedDt - a.isoCreatedDt)
+        .map(({ isoCreatedDt, ...rest }) => rest);
 
       // Tambahkan nomor urut unik (no)
       const uniqueResponseData = sortedResponseData.map((item, index) => ({
@@ -203,7 +186,13 @@ module.exports = {
       const currentPage = page > maxPage ? 1 : page;
 
       const offset = (currentPage - 1) * perPage;
-      const paginatedData = finalResponseData.slice(offset, offset + perPage);
+      const paginatedData = finalResponseData
+        .slice(offset, offset + perPage)
+        .map((item, index) => ({
+          ...item,
+          created_dt: moment(item.created_dt).format("DD-MM-YYYY HH:mm:ss"),
+          no: offset + index + 1,
+        }));
 
       success(res, "Success", {
         data: paginatedData,
