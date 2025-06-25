@@ -301,13 +301,22 @@ module.exports = {
         );
       }
 
-      // Kirim respons dengan data dan meta
+      const page = parseInt(meta?.currentPage || 1);
+      const perPage = parseInt(meta?.itemsPerPage || 10);
+
+      const totalData = finalResponseData.length;
+      const maxPage = Math.ceil(totalData / perPage);
+      const currentPage = page > maxPage ? 1 : page;
+
+      const offset = (currentPage - 1) * perPage;
+      const paginatedData = finalResponseData.slice(offset, offset + perPage);
+
       success(res, "Success", {
-        data: finalResponseData,
+        data: paginatedData,
         meta: {
-          currentPage: meta?.currentPage || 1,
-          itemsPerPage: meta?.itemsPerPage || 10,
-          totalData: finalResponseData.length,
+          currentPage: currentPage,
+          itemsPerPage: perPage,
+          totalData: totalData,
         },
       });
     } catch (err) {
@@ -841,6 +850,211 @@ module.exports = {
         message: "Something went wrong",
         detail: error.message,
       });
+    }
+  },
+  getToolUSedByLocation: async (req, res) => {
+    try {
+      const meta = req.query.meta;
+      const machine_id = req.query.machine_id;
+      const location = req.query.location;
+
+      // Jika lokasi adalah 'Tool Regrinding' atau 'Clean Room', kembalikan data kosong
+      if (location === "Tool Regrinding" || location === "Clean Room") {
+        return success(res, "No data available for this location", {
+          data: [],
+          meta: {
+            currentPage: meta?.currentPage || 1,
+            itemsPerPage: meta?.itemsPerPage || 10,
+            totalData: 0,
+          },
+        });
+      }
+
+      // Step 1: Ambil line_id berdasarkan lokasi
+      const lineCondition = `${condDataNotDeleted} AND line_nm = '${location}'`;
+      const lineData = await queryGET(tb_m_lines, lineCondition, ["line_id"]);
+
+      if (!lineData || lineData.length === 0) {
+        return success(res, "No data found for the given location", []);
+      }
+
+      const lineIds = lineData.map((line) => line.line_id);
+
+      // Step 2: Ambil machine_id dan machine_nm berdasarkan line_id
+      const machineCondition = `${condDataNotDeleted} AND line_id IN (${lineIds.join(
+        ","
+      )})`;
+      const machineData = await queryGET(tb_m_machines, machineCondition, [
+        "machine_id",
+        "machine_nm",
+      ]);
+
+      if (!machineData || machineData.length === 0) {
+        return success(res, "No machines found for the given location", []);
+      }
+
+      const machineIds = machineData.map((machine) => machine.machine_id);
+
+      // Step 3: Ambil data dari tb_r_tools_histories dan tb_r_histories_tool_no_qr
+      const toolHistoryCondition = `
+        system_activity = 'USED' 
+        AND machine_id IN (${machineIds.join(",")})
+      `;
+
+      let toolHistories = { data: [], meta: {} };
+      let noQrHistories = { data: [], meta: {} };
+
+      if (meta) {
+        // Dengan pagination
+        toolHistories = await getPaginatedData(
+          tb_r_tools_histories,
+          meta.currentPage,
+          meta.itemsPerPage,
+          toolHistoryCondition,
+          "created_dt",
+          null,
+          null,
+          false // Tidak ada deleted_dt
+        );
+
+        noQrHistories = await getPaginatedData(
+          tb_r_histories_tool_no_qr,
+          meta.currentPage,
+          meta.itemsPerPage,
+          toolHistoryCondition,
+          "created_dt",
+          null,
+          null,
+          false // Tidak ada deleted_dt
+        );
+        // Format ulang created_dt biar tampil full date + time
+        toolHistories.data = toolHistories.data.map((item) => ({
+          ...item,
+          created_dt: moment(item.created_dt).format("DD-MM-YYYY HH:mm:ss"),
+        }));
+
+        noQrHistories.data = noQrHistories.data.map((item) => ({
+          ...item,
+          created_dt: moment(item.created_dt).format("DD-MM-YYYY HH:mm:ss"),
+        }));
+      } else {
+        // Tanpa pagination
+        toolHistories = await queryGET(
+          "tb_r_tools_histories",
+          toolHistoryCondition + " ORDER BY created_dt DESC"
+        );
+
+        noQrHistories = await queryGET(
+          "tb_r_histories_tool_no_qr",
+          toolHistoryCondition + " ORDER BY created_dt DESC"
+        );
+      }
+
+      // Step 4: Ambil tool_no dan tool_nm berdasarkan tool_id
+      const uniqueToolIds = [
+        ...new Set([
+          ...toolHistories.data.map((tool) => tool.tool_id),
+          ...noQrHistories.data.map((tool) => tool.tool_id),
+        ]),
+      ];
+
+      let toolData = [];
+      let toolNames = [];
+
+      if (uniqueToolIds.length > 0) {
+        toolData = await queryGET(
+          tb_r_tools,
+          `tool_no WHERE tool_id IN (${uniqueToolIds.join(",")})`
+        );
+
+        toolNames = await queryGET(
+          "tb_m_master_tools_f_check",
+          `tool_nm WHERE tool_id IN (${uniqueToolIds.join(",")})`
+        );
+      }
+
+      // Proses untuk memastikan tool_histories memiliki tool_no dan machine_nm
+      const processedToolHistories = toolHistories.data.map((tool) => {
+        const toolInfo = toolData.find((t) => t.tool_id === tool.tool_id);
+        const machineInfo = machineData.find(
+          (m) => m.machine_id === tool.machine_id
+        );
+        return {
+          ...tool,
+          tool_qr: toolInfo ? toolInfo.tool_qr : null,
+          tool_nm: toolInfo ? toolInfo.tool_no : null,
+          machine_nm: machineInfo ? machineInfo.machine_nm : null, // Tambahkan machine_nm
+        };
+      });
+
+      // Proses untuk memastikan noQrHistories memiliki tool_no dan machine_nm
+      const processedNoQrHistories = noQrHistories.data.map((tool) => {
+        const toolNameInfo = toolNames.find((t) => t.tool_id === tool.tool_id);
+        const machineInfo = machineData.find(
+          (m) => m.machine_id === tool.machine_id
+        );
+        return {
+          ...tool,
+          tool_nm: toolNameInfo ? toolNameInfo.tool_nm : null,
+          machine_nm: machineInfo ? machineInfo.machine_nm : null, // Tambahkan machine_nm
+        };
+      });
+
+      // Gabungkan data histories setelah memastikan tool_no dan machine_nm ada
+      const responseData = [
+        ...processedToolHistories,
+        ...processedNoQrHistories,
+      ];
+
+      const sortedResponseData = responseData
+        .map((item) => ({
+          ...item,
+          isoCreatedDt: item.created_dt.split("-").reverse().join("-"), // Properti sementara untuk sorting
+        }))
+        .sort((a, b) => new Date(b.isoCreatedDt) - new Date(a.isoCreatedDt)) // Urutkan
+        .map(({ isoCreatedDt, ...rest }) => rest); // Hapus properti sementara
+
+      // Tambahkan nomor urut unik (no)
+      const uniqueResponseData = sortedResponseData.map((item, index) => ({
+        ...item,
+        no: index + 1,
+      }));
+
+      // Tambahkan logika filtering sebelum data dikirim ke FE
+      let finalResponseData = uniqueResponseData;
+      // console.log("machine_id dari FE", machine_id);
+
+      // console.log("sample data", uniqueResponseData.slice(0, 3));
+      // Jika tool_qr ada di query, filter hanya yang memiliki tool_qr
+      if (machine_id !== undefined) {
+        const machineIdNum = Number(machine_id);
+        finalResponseData = uniqueResponseData.filter(
+          (item) => item.machine_id === machineIdNum
+        );
+      }
+
+      const page = parseInt(meta?.currentPage || 1);
+      const perPage = parseInt(meta?.itemsPerPage || 10);
+
+      const totalData = finalResponseData.length;
+      const maxPage = Math.ceil(totalData / perPage);
+      const currentPage = page > maxPage ? 1 : page;
+
+      const offset = (currentPage - 1) * perPage;
+      const paginatedData = finalResponseData.slice(offset, offset + perPage);
+
+      // Kirim respons dengan data dan meta
+      success(res, "Success", {
+        data: paginatedData,
+        meta: {
+          currentPage: currentPage,
+          itemsPerPage: perPage,
+          totalData: totalData,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      error(res, err.message);
     }
   },
 };

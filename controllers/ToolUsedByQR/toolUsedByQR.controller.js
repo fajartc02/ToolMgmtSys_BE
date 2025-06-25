@@ -40,7 +40,7 @@ module.exports = {
       console.log("distribution_id", distribution_id);
 
       let q = `
-        SELECT p.*, t.tool_type_id 
+        SELECT p.*, t.tool_type_id, t.tool_no
         FROM tb_t_tools_positions p
         JOIN tb_r_tools t ON p.tool_id = t.tool_id
         WHERE p.machine_id = $1 
