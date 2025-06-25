@@ -53,13 +53,16 @@ async function getPaginatedData(
     // Format tanggal sesuai dengan dateFormat yang dipilih
     dataResult.rows.forEach((row) => {
       if (row.created_dt) {
-        if (dateFormat === "timestamp") {
-          // Jika dateFormat adalah 'timestamp', tampilkan dengan format waktu
-          row.created_dt = moment(row.created_dt).format("YYYY-MM-DD HH:mm:ss");
-        } else {
-          // Jika tidak ada dateFormat atau dateFormat bukan 'timestamp', tampilkan hanya tanggal
-          row.created_dt = moment(row.created_dt).format("DD-MM-YYYY");
-        }
+        const rawDate = moment(row.created_dt);
+
+        // Deteksi apakah data timestamp mengandung jam (HH:mm:ss)
+        const original = rawDate.format("YYYY-MM-DD HH:mm:ss");
+
+        const hasTime = !rawDate.isSame(rawDate.clone().startOf("day"));
+
+        row.created_dt = hasTime
+          ? rawDate.format("YYYY-MM-DD HH:mm:ss")
+          : rawDate.format("DD-MM-YYYY");
       }
     });
 
