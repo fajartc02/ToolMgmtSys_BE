@@ -16,9 +16,10 @@ module.exports = {
       );
 
       if (toolHistories.length === 0) {
-        return res
-          .status(404)
-          .json({ message: "No data found for the given tool number" });
+        return res.status(200).json({
+          message: "No data available for this tool",
+          data: [],
+        });
       }
 
       // Filter history_id dengan system_activity = 'REGRINDING'
@@ -27,8 +28,9 @@ module.exports = {
       );
 
       if (regrindingHistories.length === 0) {
-        return res.status(404).json({
-          message: "No regrinding data found for the given tool number",
+        return res.status(200).json({
+          message: "No data available for this tool",
+          data: [],
         });
       }
 
@@ -46,8 +48,9 @@ module.exports = {
       }
 
       if (toolChecks.length === 0) {
-        return res.status(404).json({
-          message: "No tool check data found for the given history IDs",
+        return res.status(200).json({
+          message: "No data available for this tool",
+          data: [],
         });
       }
 
