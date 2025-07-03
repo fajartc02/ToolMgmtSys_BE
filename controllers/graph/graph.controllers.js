@@ -71,7 +71,7 @@ module.exports = {
 
   getGraphRegrdindingCount: async (req, res) => {
     try {
-      console.log("▶️ [QUERY PARAMS]", req.query);
+      // console.log("▶️ [QUERY PARAMS]", req.query);
 
       let data = [
         { name: "Actual", data: [] },
@@ -96,7 +96,7 @@ module.exports = {
       ORDER BY trth.created_dt ASC
     `);
 
-      console.log("✅ [RESULT] Jumlah histori:", result.rows.length);
+      // console.log("✅ [RESULT] Jumlah histori:", result.rows.length);
 
       for (const item of result.rows) {
         const createdDate = moment(item.created_dt).format("DD-MM-YYYY");
@@ -106,12 +106,12 @@ module.exports = {
         // 1. Mapping distribution_id ke line_id
         const distToLine = { 3: 0, 4: 2, 5: 3, 6: 1 };
         const line_id = distToLine[item.distribution_id] ?? null;
-        console.log(
-          "🧭 [line_id]",
-          line_id,
-          "dari distribution_id:",
-          item.distribution_id
-        );
+        // console.log(
+        //   "🧭 [line_id]",
+        //   line_id,
+        //   "dari distribution_id:",
+        //   item.distribution_id
+        // );
 
         // 2. Ambil 5 digit dari tool_no
         const mid5 = item.tool_no.match(/\d{5}/)?.[0] || "";
@@ -119,13 +119,14 @@ module.exports = {
 
         // 3. Ambil machine_id dari tb_t_tools_positions
         const posRes = await queryCustom(`
-        SELECT machine_id 
-        FROM tb_t_tools_positions 
-        WHERE tool_id = ${item.tool_id}
-        LIMIT 1
+            SELECT machine_id 
+              FROM tb_r_tools_histories 
+              WHERE tool_id = ${item.tool_id} AND system_activity = 'IN USED'
+              ORDER BY created_dt DESC
+              LIMIT 1
       `);
         const machine_id = posRes.rows?.[0]?.machine_id;
-        console.log("🛠️ [machine_id]", machine_id);
+        // console.log("🛠️ [machine_id]", machine_id);
 
         // 4. Ambil op_no dari tb_m_machines
         let op_no = "";
@@ -138,7 +139,7 @@ module.exports = {
         `);
           op_no = machineRes.rows?.[0]?.op_no.match(/\d+/)?.[0] || "";
         }
-        console.log("🔧 [op_no]", op_no);
+        // console.log("🔧 [op_no]", op_no);
 
         // 5. Ambil std_ctr dari tb_m_master_tools_f_check
         let std_ctr = null;
@@ -152,7 +153,7 @@ module.exports = {
         `);
           std_ctr = stdRes.rows?.[0]?.std_ctr || null;
         }
-        console.log("📏 [std_ctr ditemukan]", std_ctr);
+        // console.log("📏 [std_ctr ditemukan]", std_ctr);
 
         // 6. Push data ke grafik
         data[0].data.push(act_counter);
