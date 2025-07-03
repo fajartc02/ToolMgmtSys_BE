@@ -486,7 +486,7 @@ module.exports = {
       const line_id = lineResult[0].line_id;
 
       // Ambil semua data tool_no
-      const toolNoCondition = `WHERE line_id = '${line_id}' AND op_no = '${op_no}'`;
+      const toolNoCondition = `WHERE line_id = '${line_id}' AND op_no = '${op_no}' AND deleted_dt IS NULL`;
       const tool_no = await queryGET(
         tb_m_master_tools_f_check,
         toolNoCondition
@@ -523,6 +523,8 @@ module.exports = {
   addHistoriesNoQr: async (req, res) => {
     try {
       const data = req.body;
+    
+      
 
       // Validasi data jika diperlukan
       if (!data.tool_id || !data.machine_id || !data.pic) {
