@@ -115,7 +115,7 @@ module.exports = {
 
         // 2. Ambil 5 digit dari tool_no
         const mid5 = item.tool_no.match(/\d{5}/)?.[0] || "";
-        console.log("🔍 [mid5 dari tool_no]", mid5);
+        // console.log("🔍 [mid5 dari tool_no]", mid5);
 
         // 3. Ambil machine_id dari tb_t_tools_positions
         const posRes = await queryCustom(`
